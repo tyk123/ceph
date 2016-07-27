@@ -6768,34 +6768,36 @@ int Client::lchmod(const char *relpath, mode_t mode, const UserPerm& perms)
   return _setattr(in, &attr, CEPH_SETATTR_MODE, perms);
 }
 
-int Client::chown(const char *relpath, int uid, int gid)
+int Client::chown(const char *relpath, int new_uid, int new_gid,
+		  const UserPerm& perms)
 {
   Mutex::Locker lock(client_lock);
   tout(cct) << "chown" << std::endl;
   tout(cct) << relpath << std::endl;
-  tout(cct) << uid << std::endl;
-  tout(cct) << gid << std::endl;
+  tout(cct) << new_uid << std::endl;
+  tout(cct) << new_gid << std::endl;
   filepath path(relpath);
   InodeRef in;
-  int r = path_walk(path, &in);
+  int r = path_walk(path, &in, perms);
   if (r < 0)
     return r;
   struct stat attr;
-  attr.st_uid = uid;
-  attr.st_gid = gid;
+  attr.st_uid = new_uid;
+  attr.st_gid = new_gid;
   int mask = 0;
-  if (uid != -1) mask |= CEPH_SETATTR_UID;
-  if (gid != -1) mask |= CEPH_SETATTR_GID;
-  return _setattr(in, &attr, mask);
+  // TODO: find out if this -1 on chown is okay for NFS
+  if (new_uid != -1) mask |= CEPH_SETATTR_UID;
+  if (new_gid != -1) mask |= CEPH_SETATTR_GID;
+  return _setattr(in, &attr, mask, perms);
 }
 
-int Client::fchown(int fd, int uid, int gid)
+int Client::fchown(int fd, int new_uid, int new_gid, const UserPerm& perms)
 {
   Mutex::Locker lock(client_lock);
   tout(cct) << "fchown" << std::endl;
   tout(cct) << fd << std::endl;
-  tout(cct) << uid << std::endl;
-  tout(cct) << gid << std::endl;
+  tout(cct) << new_uid << std::endl;
+  tout(cct) << new_gid << std::endl;
   Fh *f = get_filehandle(fd);
   if (!f)
     return -EBADF;
@@ -6804,34 +6806,37 @@ int Client::fchown(int fd, int uid, int gid)
     return -EBADF;
 #endif
   struct stat attr;
-  attr.st_uid = uid;
-  attr.st_gid = gid;
+  attr.st_uid = new_uid;
+  attr.st_gid = new_gid;
   int mask = 0;
-  if (uid != -1) mask |= CEPH_SETATTR_UID;
-  if (gid != -1) mask |= CEPH_SETATTR_GID;
-  return _setattr(f->inode, &attr, mask);
+  // TODO: find out if this -1 on chown is okay for NFS
+  if (new_uid != -1) mask |= CEPH_SETATTR_UID;
+  if (new_gid != -1) mask |= CEPH_SETATTR_GID;
+  return _setattr(f->inode, &attr, mask, perms);
 }
 
-int Client::lchown(const char *relpath, int uid, int gid)
+int Client::lchown(const char *relpath, int new_uid, int new_gid,
+		   const UserPerm& perms)
 {
   Mutex::Locker lock(client_lock);
   tout(cct) << "lchown" << std::endl;
   tout(cct) << relpath << std::endl;
-  tout(cct) << uid << std::endl;
-  tout(cct) << gid << std::endl;
+  tout(cct) << new_uid << std::endl;
+  tout(cct) << new_gid << std::endl;
   filepath path(relpath);
   InodeRef in;
   // don't follow symlinks
-  int r = path_walk(path, &in, false);
+  int r = path_walk(path, &in, perms, false);
   if (r < 0)
     return r;
   struct stat attr;
-  attr.st_uid = uid;
-  attr.st_gid = gid;
+  attr.st_uid = new_uid;
+  attr.st_gid = new_gid;
   int mask = 0;
-  if (uid != -1) mask |= CEPH_SETATTR_UID;
-  if (gid != -1) mask |= CEPH_SETATTR_GID;
-  return _setattr(in, &attr, mask);
+  // TODO: find out if this -1 on chown is okay for NFS
+  if (new_uid != -1) mask |= CEPH_SETATTR_UID;
+  if (new_gid != -1) mask |= CEPH_SETATTR_GID;
+  return _setattr(in, &attr, mask, perms);
 }
 
 int Client::utime(const char *relpath, struct utimbuf *buf)

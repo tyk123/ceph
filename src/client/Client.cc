@@ -6839,7 +6839,8 @@ int Client::lchown(const char *relpath, int new_uid, int new_gid,
   return _setattr(in, &attr, mask, perms);
 }
 
-int Client::utime(const char *relpath, struct utimbuf *buf)
+int Client::utime(const char *relpath, struct utimbuf *buf,
+		  const UserPerm& perms)
 {
   Mutex::Locker lock(client_lock);
   tout(cct) << "utime" << std::endl;
@@ -6848,7 +6849,7 @@ int Client::utime(const char *relpath, struct utimbuf *buf)
   tout(cct) << buf->actime << std::endl;
   filepath path(relpath);
   InodeRef in;
-  int r = path_walk(path, &in);
+  int r = path_walk(path, &in, perms);
   if (r < 0)
     return r;
   struct stat attr;
@@ -6856,10 +6857,11 @@ int Client::utime(const char *relpath, struct utimbuf *buf)
   stat_set_mtime_nsec(&attr, 0);
   stat_set_atime_sec(&attr, buf->actime);
   stat_set_atime_nsec(&attr, 0);
-  return _setattr(in, &attr, CEPH_SETATTR_MTIME|CEPH_SETATTR_ATIME);
+  return _setattr(in, &attr, CEPH_SETATTR_MTIME|CEPH_SETATTR_ATIME, perms);
 }
 
-int Client::lutime(const char *relpath, struct utimbuf *buf)
+int Client::lutime(const char *relpath, struct utimbuf *buf,
+		   const UserPerm& perms)
 {
   Mutex::Locker lock(client_lock);
   tout(cct) << "lutime" << std::endl;
@@ -6869,7 +6871,7 @@ int Client::lutime(const char *relpath, struct utimbuf *buf)
   filepath path(relpath);
   InodeRef in;
   // don't follow symlinks
-  int r = path_walk(path, &in, false);
+  int r = path_walk(path, &in, perms, false);
   if (r < 0)
     return r;
   struct stat attr;
@@ -6877,7 +6879,7 @@ int Client::lutime(const char *relpath, struct utimbuf *buf)
   stat_set_mtime_nsec(&attr, 0);
   stat_set_atime_sec(&attr, buf->actime);
   stat_set_atime_nsec(&attr, 0);
-  return _setattr(in, &attr, CEPH_SETATTR_MTIME|CEPH_SETATTR_ATIME);
+  return _setattr(in, &attr, CEPH_SETATTR_MTIME|CEPH_SETATTR_ATIME, perms);
 }
 
 int Client::flock(int fd, int operation, uint64_t owner)

@@ -1078,8 +1078,8 @@ public:
   int chown(const char *path, int new_uid, int new_gid, const UserPerm& perms);
   int fchown(int fd, int new_uid, int new_gid, const UserPerm& perms);
   int lchown(const char *path, int new_uid, int new_gid, const UserPerm& perms);
-  int utime(const char *path, struct utimbuf *buf);
-  int lutime(const char *path, struct utimbuf *buf);
+  int utime(const char *path, struct utimbuf *buf, const UserPerm& perms);
+  int lutime(const char *path, struct utimbuf *buf, const UserPerm& perms);
   int flock(int fd, int operation, uint64_t owner);
   int truncate(const char *path, loff_t size);
 

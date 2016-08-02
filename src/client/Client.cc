@@ -8466,6 +8466,7 @@ int Client::_write(Fh *f, int64_t offset, uint64_t size, const char *buf,
 
   // check quota
   uint64_t endoff = offset + size;
+  UserPerm perms(f->actor_uid, f->actor_gid); //
   if (endoff > in->size && is_quota_bytes_exceeded(in, endoff - in->size))
     return -EDQUOT;
 
@@ -8477,9 +8478,7 @@ int Client::_write(Fh *f, int64_t offset, uint64_t size, const char *buf,
      * change out from under us.
      */
     if (f->flags & O_APPEND) {
-      // FIXME
-      UserPerm perms(0, 0);
-      int r = _lseek(f, 0, SEEK_END, perms);
+      int r = _lseek(f, 0, SEEK_END, f->perms);
       if (r < 0) {
         unlock_fh_pos(f);
         return r;

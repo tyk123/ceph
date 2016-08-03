@@ -27,12 +27,12 @@ public:
   UserPerm() : m_uid(-1), m_gid(-1), gid_count(0), gids(NULL) {}
   UserPerm(int uid, int gid) : m_uid(uid), m_gid(gid) {}
   UserPerm(const UserPerm& o) {
-    m_uid = o->m_uid;
-    m_gid = o->m_gid;
-    gid_count = o->gid_count;
+    m_uid = o.m_uid;
+    m_gid = o.m_gid;
+    gid_count = o.gid_count;
     gids = new gid_t[gid_count];
     for (int i = 0; i < gid_count; ++i) {
-      gids[i] = o->gid[i];
+      gids[i] = o.gids[i];
     }
   }
   // FIXME: stop doing a deep-copy all the time. We need it on stuff

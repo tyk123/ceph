@@ -10509,7 +10509,7 @@ int Client::_mknod(Inode *dir, const char *name, mode_t mode, dev_t rdev,
   req->dentry_unless = CEPH_CAP_FILE_EXCL;
 
   bufferlist xattrs_bl;
-  int res = _posix_acl_create(dir, &mode, xattrs_bl, perms.uid(), perms.gid());
+  int res = _posix_acl_create(dir, &mode, xattrs_bl, perms);
   if (res < 0)
     goto fail;
   req->head.args.mknod.mode = mode;
@@ -10621,7 +10621,7 @@ int Client::_create(Inode *dir, const char *name, int flags, mode_t mode,
 
   mode |= S_IFREG;
   bufferlist xattrs_bl;
-  int res = _posix_acl_create(dir, &mode, xattrs_bl, perms.uid(), perms.gid());
+  int res = _posix_acl_create(dir, &mode, xattrs_bl, perms);
   if (res < 0)
     goto fail;
   req->head.args.open.mode = mode;
@@ -10690,7 +10690,7 @@ int Client::_mkdir(Inode *dir, const char *name, mode_t mode, const UserPerm& pe
 
   mode |= S_IFDIR;
   bufferlist xattrs_bl;
-  int res = _posix_acl_create(dir, &mode, xattrs_bl, perm.uid(), perm.gid());
+  int res = _posix_acl_create(dir, &mode, xattrs_bl, perm);
   if (res < 0)
     goto fail;
   req->head.args.mkdir.mode = mode;
@@ -12407,7 +12407,7 @@ out:
 }
 
 int Client::_posix_acl_create(Inode *dir, mode_t *mode, bufferlist& xattrs_bl,
-			      int uid, int gid)
+			      const UserPerm& perms)
 {
   if (acl_type == NO_ACL)
     return 0;
@@ -12415,7 +12415,7 @@ int Client::_posix_acl_create(Inode *dir, mode_t *mode, bufferlist& xattrs_bl,
   if (S_ISLNK(*mode))
     return 0;
 
-  int r = _getattr(dir, CEPH_STAT_CAP_XATTR, uid, gid, dir->xattr_version == 0);
+  int r = _getattr(dir, CEPH_STAT_CAP_XATTR, perms.uid(), perms.gid(), dir->xattr_version == 0);
   if (r < 0)
     goto out;
 

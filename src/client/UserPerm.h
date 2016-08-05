@@ -22,7 +22,6 @@ private:
   gid_t m_gid;
   int gid_count;
   gid_t *gids;
-  bool allocated_gids;
 public:
   UserPerm() : m_uid(-1), m_gid(-1), gid_count(0), gids(NULL) {}
   UserPerm(int uid, int gid) : m_uid(uid), m_gid(gid) {}

@@ -555,7 +555,7 @@ struct inode_t {
     layout = file_layout_t();
   }
 
-  uint64_t get_layout_size_increment() {
+  uint64_t get_layout_size_increment() const {
     return layout.get_period();
   }
 

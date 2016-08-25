@@ -19,6 +19,7 @@
 #include "CObject.h"
 #include "SimpleLock.h"
 #include "include/elist.h"
+#include "common/Mutex.h"
 
 class LogSegment;
 class Session;
@@ -115,8 +116,11 @@ struct MutationImpl {
   void start_committing() {
     std::atomic_store_explicit(&committing, true, std::memory_order_acquire);
   }
+  bool is_committing() {
+    return std::atomic_load_explicit(&committing, std::memory_order_acquire);
+  }
   void wait_committing() {
-    while(!std::atomic_exchange_explicit(&committing, false, std::memory_order_acquire));
+    while(!is_committing());
   }
 
   virtual void print(ostream &out) const {
@@ -141,6 +145,8 @@ typedef ceph::shared_ptr<MutationImpl> MutationRef;
  * the request is finished or forwarded.  see request_*().
  */
 struct MDRequestImpl : public MutationImpl {
+  Mutex dispatch_mutex;
+
   Session *session;
   elist<MDRequestImpl*>::item item_session_request;  // if not on list, op is aborted.
 
@@ -160,6 +166,7 @@ struct MDRequestImpl : public MutationImpl {
   inodeno_t alloc_ino, used_prealloc_ino;
   interval_set<inodeno_t> prealloc_inos;
 
+  bool killed;
   bool hold_rename_dir_mutex;
   bool did_early_reply;
 
@@ -176,8 +183,11 @@ struct MDRequestImpl : public MutationImpl {
   };
   MDRequestImpl(const Params& params) :
     MutationImpl(params.reqid, params.attempt),
+    dispatch_mutex("MDRequestImpl::dispatch_mutex"),
+    session(NULL),
     client_request(params.client_req),
     straydn(NULL), tracei(-1), tracedn(-1),
+    killed(false),
     hold_rename_dir_mutex(false),
     did_early_reply(false),
     getattr_mask(0), retries(0) { }

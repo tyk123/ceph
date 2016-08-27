@@ -213,6 +213,9 @@ WRITE_CLASS_ENCODER(frag_info_t)
 inline bool operator==(const frag_info_t &l, const frag_info_t &r) {
   return memcmp(&l, &r, sizeof(l)) == 0;
 }
+inline bool operator!=(const frag_info_t &l, const frag_info_t &r) {
+  return !(l == r);
+}
 
 std::ostream& operator<<(std::ostream &out, const frag_info_t &f);
 
@@ -272,6 +275,9 @@ WRITE_CLASS_ENCODER(nest_info_t)
 
 inline bool operator==(const nest_info_t &l, const nest_info_t &r) {
   return memcmp(&l, &r, sizeof(l)) == 0;
+}
+inline bool operator!=(const nest_info_t &l, const nest_info_t &r) {
+  return !(l == r);
 }
 
 std::ostream& operator<<(std::ostream &out, const nest_info_t &n);

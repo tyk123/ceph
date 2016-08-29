@@ -14,8 +14,8 @@
 #include "common/Clock.h"
 #include "common/DecayCounter.h"
 #include "common/entity_name.h"
-#include "MDSContext.h"
 
+#include "include/Context.h"
 #include "include/frag.h"
 #include "include/xlist.h"
 #include "include/interval_set.h"
@@ -1242,9 +1242,9 @@ public:
 //#define MDS_PIN_REPLICATED     1
 //#define MDS_STATE_AUTH     (1<<0)
 
+class MDSInternalContextBase;
 class MLock;
 class SimpleLock;
-
 class MDSCacheObject;
 
 typedef std::pair<mds_rank_t, mds_rank_t> mds_authority_t;
@@ -1633,12 +1633,7 @@ protected:
     if (waiting.empty())
       put(PIN_WAITER);
   }
-  void finish_waiting(uint64_t mask, int result = 0) {
-    list<MDSInternalContextBase*> finished;
-    take_waiting(mask, finished);
-    finish_contexts(g_ceph_context, finished, result);
-  }
-
+  void finish_waiting(uint64_t mask, int result = 0);
 
   // ---------------------------------------------
   // locking

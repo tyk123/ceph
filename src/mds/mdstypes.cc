@@ -2,6 +2,7 @@
 // vim: ts=8 sw=2 smarttab
 
 #include "mdstypes.h"
+#include "MDSContext.h"
 #include "common/Formatter.h"
 
 const mds_gid_t MDS_GID_NONE = mds_gid_t(0);
@@ -851,7 +852,6 @@ void MDSCacheObjectInfo::generate_test_instances(list<MDSCacheObjectInfo*>& ls)
   ls.back()->snapid = 21322;
 }
 
-
 /*
  * mds_table_pending_t
  */
@@ -1042,6 +1042,12 @@ void cap_reconnect_t::generate_test_instances(list<cap_reconnect_t*>& ls)
 }
 
 uint64_t MDSCacheObject::last_wait_seq = 0;
+
+void MDSCacheObject::finish_waiting(uint64_t mask, int result) {
+  list<MDSInternalContextBase*> finished;
+  take_waiting(mask, finished);
+  finish_contexts(g_ceph_context, finished, result);
+}
 
 void MDSCacheObject::dump(Formatter *f) const
 {

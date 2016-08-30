@@ -9729,38 +9729,66 @@ Inode *Client::open_snapdir(Inode *diri)
   return in;
 }
 
-int Client::ll_lookup(Inode *parent, const char *name, struct stat *attr,
-		      Inode **out, int uid, int gid)
+int Client::_ll_lookup(Inode *parent, const char *name, InodeRef *in, int mask,
+			int uid, int gid)
 {
   Mutex::Locker lock(client_lock);
   ldout(cct, 3) << "ll_lookup " << parent << " " << name << dendl;
   tout(cct) << "ll_lookup" << std::endl;
   tout(cct) << name << std::endl;
 
-  int r = 0;
   if (!cct->_conf->fuse_default_permissions) {
-    r = may_lookup(parent, uid, gid);
+    int r = may_lookup(parent, uid, gid);
     if (r < 0)
       return r;
   }
 
   string dname(name);
+
+  return _lookup(parent, dname, mask, in, uid, gid);
+}
+
+int Client::ll_lookup(Inode *parent, const char *name, struct stat *attr,
+		      Inode **out, int uid, int gid)
+{
   InodeRef in;
 
-  r = _lookup(parent, dname, CEPH_STAT_CAP_INODE_ALL, &in, uid, gid);
+  int r = _ll_lookup(parent, name, &in, CEPH_STAT_CAP_INODE_ALL, uid, gid);
   if (r < 0) {
     attr->st_ino = 0;
-    goto out;
+  } else {
+    assert(in);
+    fill_stat(in, attr);
+    _ll_get(in.get());
   }
 
-  assert(in);
-  fill_stat(in, attr);
-  _ll_get(in.get());
-
- out:
   ldout(cct, 3) << "ll_lookup " << parent << " " << name
 	  << " -> " << r << " (" << hex << attr->st_ino << dec << ")" << dendl;
   tout(cct) << attr->st_ino << std::endl;
+  *out = in.get();
+  return r;
+}
+
+int Client::ll_lookupx(Inode *parent, const char *name, Inode **out,
+			struct ceph_statx *stx, unsigned want, unsigned flags,
+			int uid, int gid)
+{
+  unsigned mask = statx_to_mask(flags, want);
+  InodeRef in;
+
+  int r = _ll_lookup(parent, name, &in, mask, uid, gid);
+  if (r < 0) {
+    stx->stx_ino = 0;
+    stx->stx_mask = 0;
+  } else {
+    assert(in);
+    fill_statx(in, mask, stx);
+    _ll_get(in.get());
+  }
+
+  ldout(cct, 3) << "ll_lookupx " << parent << " " << name
+	  << " -> " << r << " (" << hex << stx->stx_ino << dec << ")" << dendl;
+  tout(cct) << stx->stx_ino << std::endl;
   *out = in.get();
   return r;
 }

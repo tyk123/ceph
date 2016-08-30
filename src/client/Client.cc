@@ -6524,13 +6524,16 @@ int Client::_do_setattr(Inode *in, struct stat *attr, int mask, int uid, int gid
       mask &= ~(CEPH_SETATTR_MTIME|CEPH_SETATTR_ATIME);
     }
   }
-  if (!mask)
+  if (!mask) {
+    in->change_attr++;
     return 0;
+  }
 
 force_request:
   MetaRequest *req = new MetaRequest(CEPH_MDS_OP_SETATTR);
 
   filepath path;
+
   in->make_nosnap_relative_path(path);
   req->set_filepath(path);
   req->set_inode(in);
@@ -8798,6 +8801,7 @@ success:
 
   // mtime
   in->mtime = ceph_clock_now(cct);
+  in->change_attr++;
   mark_caps_dirty(in, CEPH_CAP_FILE_WR);
 
 done:
@@ -11831,6 +11835,7 @@ int Client::_fallocate(Fh *fh, int mode, int64_t offset, int64_t length)
         in->inline_version++;
       }
       in->mtime = ceph_clock_now(cct);
+      in->change_attr++;
       mark_caps_dirty(in, CEPH_CAP_FILE_WR);
     } else {
       if (in->inline_version < CEPH_INLINE_NONE) {
@@ -11858,6 +11863,7 @@ int Client::_fallocate(Fh *fh, int mode, int64_t offset, int64_t length)
 		      0, true, onfinish,
 		      new C_OnFinisher(onsafe, &objecter_finisher));
       in->mtime = ceph_clock_now(cct);
+      in->change_attr++;
       mark_caps_dirty(in, CEPH_CAP_FILE_WR);
 
       client_lock.Unlock();
@@ -11872,6 +11878,7 @@ int Client::_fallocate(Fh *fh, int mode, int64_t offset, int64_t length)
     if (size > in->size) {
       in->size = size;
       in->mtime = ceph_clock_now(cct);
+      in->change_attr++;
       mark_caps_dirty(in, CEPH_CAP_FILE_WR);
 
       if (is_quota_bytes_approaching(in)) {

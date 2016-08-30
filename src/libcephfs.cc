@@ -1423,6 +1423,12 @@ extern "C" int ceph_ll_walk(class ceph_mount_info *cmount, const char *name,
   return(cmount->get_client()->ll_walk(name, i, attr));
 }
 
+int ceph_ll_walkx(struct ceph_mount_info *cmount, const char* name, Inode **i,
+		  struct ceph_statx *stx, unsigned int want, unsigned int flags)
+{
+  return(cmount->get_client()->ll_walkx(name, i, stx, want, flags));
+}
+
 extern "C" int ceph_ll_getattr(class ceph_mount_info *cmount,
 			       Inode *in, struct stat *attr,
 			       int uid, int gid)

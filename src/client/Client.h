@@ -1143,6 +1143,8 @@ public:
 
   int ll_statfs(Inode *in, struct statvfs *stbuf);
   int ll_walk(const char* name, Inode **i, struct stat *attr); // XXX in?
+  int ll_walkx(const char* name, Inode **i, struct ceph_statx *stx,
+	       unsigned int want, unsigned int flags);
   int ll_listxattr_chunks(Inode *in, char *names, size_t size,
 			  int *cookie, int *eol, int uid, int gid);
   uint32_t ll_stripe_unit(Inode *in);

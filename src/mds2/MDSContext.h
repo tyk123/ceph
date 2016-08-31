@@ -91,6 +91,4 @@ public:
   void complete(int r) final;
 };
 
-// make mdstypes.{h,cc} happy
-class MDSInternalContextBase : public MDSContextBase {};
 #endif  // MDS_CONTEXT_H

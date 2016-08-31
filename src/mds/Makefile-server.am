@@ -50,6 +50,7 @@ noinst_HEADERS += \
 	mds/inode_backtrace.h \
 	mds/mds_table_types.h \
 	mds/mdstypes.h \
+	mds/MDSCacheObject.h \
 	mds/snap.h \
 	mds/MDSContinuation.h
 

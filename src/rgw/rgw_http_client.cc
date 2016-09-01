@@ -431,17 +431,26 @@ static int do_curl_wait(CephContext *cct, CURLM *handle, int signal_fd)
 
   int ret = curl_multi_wait(handle, &wait_fd, 1, cct->_conf->rgw_curl_wait_timeout_ms, &num_fds);
   if (ret) {
-    dout(0) << "ERROR: curl_multi_wait() returned " << ret << dendl;
+    ldout(cct, 0) << "ERROR: curl_multi_wait() returned " << ret << dendl;
     return -EIO;
   }
 
-  if (wait_fd.revents > 0) {
-    uint32_t buf;
-    ret = read(signal_fd, (void *)&buf, sizeof(buf));
+  // NOTE: this should check if (wait_fd.revents > 0), but there's a bug in
+  // early versions of libcurl where curl_multi_wait() wakes up on wait_fd but
+  // doesn't set revents. so as a workaround, we try a non-blocking read on the
+  // pipe every time we wake up
+  if (signal_fd > 0) {
+    // since we're in non-blocking mode, we can try to read a lot more than a
+    // single signal from signal_thread() to avoid multiple wakeups
+    std::array<char, 256> buf;
+    ret = ::read(signal_fd, buf.data(), buf.size());
     if (ret < 0) {
       ret = -errno;
-      dout(0) << "ERROR: " << __func__ << "(): read() returned " << ret << dendl;
-      return ret;
+      if (ret != -EAGAIN) {
+        ldout(cct, 0) << "ERROR: " << __func__ << "(): read() returned " << ret << dendl;
+        return ret;
+      }
+      ldout(cct, 20) << "do_curl_wait read returned EAGAIN" << dendl;
     }
   }
   return 0;
@@ -790,7 +799,18 @@ int RGWHTTPManager::set_threaded()
     ldout(cct, 0) << "ERROR: pipe() returned errno=" << r << dendl;
     return r;
   }
-
+#if HAVE_CURL_MULTI_WAIT
+  // enable non-blocking reads for do_curl_wait() to work around a bug in
+  // curl_multi_wait() that's present in early versions of libcurl
+  r = ::fcntl(thread_pipe[0], F_SETFL, O_NONBLOCK);
+  if (r < 0) {
+    r = -errno;
+    ldout(cct, 0) << "ERROR: fcntl() returned errno=" << r << dendl;
+    TEMP_FAILURE_RETRY(::close(thread_pipe[0]));
+    TEMP_FAILURE_RETRY(::close(thread_pipe[1]));
+    return r;
+  }
+#endif
   is_threaded = true;
   reqs_thread = new ReqsThread(this);
   reqs_thread->create("http_manager");

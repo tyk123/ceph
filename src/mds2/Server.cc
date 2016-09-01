@@ -33,8 +33,8 @@ public:
   }
 };
 
-Server::Server(MDSRank *_mds)
-  : mds(_mds), mdcache(_mds->mdcache), locker(_mds->locker)
+Server::Server(MDSRank *_mds) :
+  mds(_mds), mdcache(_mds->mdcache), locker(_mds->locker)
 {
 }
 
@@ -841,6 +841,13 @@ int Server::rdlock_path_xlock_dentry(const MDRequestRef& mdr, int n,
     in = dnl->get_inode();
     if (dnl->is_remote() && !in) {
       in = mdcache->get_inode(dnl->get_remote_ino());
+      if (!in) {
+	mdcache->open_remote_dentry(dnl->get_remote_ino(), dnl->get_remote_d_type(),
+				    new C_MDS_RetryRequest(mds, mdr));
+	mdr->unlock_object(diri.get());
+	locker->drop_locks(mdr);
+	return -EAGAIN;
+      }
     }
     assert(in);
   }
@@ -1237,6 +1244,7 @@ void Server::__mknod_finish(const MDRequestRef& mdr)
   // a new version of hte inode since it's just been created)
   in->__get_inode()->version--;
   in->mark_dirty(in->get_inode()->version + 1, mdr->ls);
+  in->_mark_dirty_parent(mdr->ls, true);
 
   if (in->is_dir()) {
     CDirRef dir = in->get_dirfrag(frag_t());
@@ -1295,6 +1303,7 @@ void Server::handle_client_mknod(const MDRequestRef& mdr)
 
   inode_t *pi = newi->__get_inode();
   pi->version = dn->pre_dirty();
+  pi->update_backtrace();
   pi->rdev = req->head.args.mknod.rdev;
   pi->rstat.rfiles = 1;
 
@@ -1368,6 +1377,7 @@ void Server::handle_client_symlink(const MDRequestRef& mdr)
 
   inode_t *pi = newi->__get_inode();
   pi->version = dn->pre_dirty();
+  pi->update_backtrace();
 
   newi->__set_symlink(req->get_path2());
   pi->size = newi->get_symlink().length();
@@ -1421,6 +1431,7 @@ void Server::handle_client_mkdir(const MDRequestRef& mdr)
 
   inode_t *pi = newi->__get_inode();
   pi->version = dn->pre_dirty();
+  pi->update_backtrace();
   pi->rstat.rsubdirs = 1;
 
   // issue a cap on the directory
@@ -1493,9 +1504,9 @@ void Server::handle_client_readdir(const MDRequestRef& mdr)
   CDirRef dir = diri->get_or_open_dirfrag(frag_t());
 
   if (!dir->is_complete()) {
-    //locker->drop_locks(mdr);
     dir->fetch(new C_MDS_RetryRequest(mds, mdr));
     mdr->unlock_object(diri.get());
+    //locker->drop_locks(mdr);
     return;
   }
 
@@ -1528,6 +1539,17 @@ void Server::handle_client_readdir(const MDRequestRef& mdr)
     // remote link?
     if (dnl->is_remote() && !in) {
       in = mdcache->get_inode(dnl->get_remote_ino());
+      if (!in) {
+	if (dnbl.length() > 0) {
+	  mdcache->open_remote_dentry(dnl->get_remote_ino(), dnl->get_remote_d_type());
+	  break;
+	}
+	mdcache->open_remote_dentry(dnl->get_remote_ino(), dnl->get_remote_d_type(),
+				    new C_MDS_RetryRequest(mds, mdr));
+	mdr->unlock_object(diri.get());
+	locker->drop_locks(mdr);
+	return;
+      }
     }
 
     assert(in);
@@ -1742,6 +1764,7 @@ void Server::handle_client_unlink(const MDRequestRef& mdr)
   dn->push_projected_linkage();
 
   if (dnl->is_primary()) {
+    pi->update_backtrace();
     mdcache->predirty_journal_parents(mdr, &le->metablob, in.get(), straydn->get_dir(), PREDIRTY_PRIMARY|PREDIRTY_DIR, 1);
     mdcache->predirty_journal_parents(mdr, &le->metablob, in.get(), dn->get_dir(), PREDIRTY_PRIMARY|PREDIRTY_DIR, -1);
     le->metablob.add_primary_dentry(straydn.get(), in.get(), true, true);
@@ -2057,6 +2080,7 @@ void Server::handle_client_rename(const MDRequestRef& mdr)
     if (dest_dnl->is_primary()) {
       straydn->push_projected_linkage(oldin.get());
       tpi->version = straydn->pre_dirty(tpi->version);
+      tpi->update_backtrace();
     } else {
       tpi->version = oldin->pre_dirty();
     }
@@ -2073,6 +2097,7 @@ void Server::handle_client_rename(const MDRequestRef& mdr)
     destdn->push_projected_linkage(srci.get());
     pi = srci->project_inode();
     pi->version = destdn->pre_dirty(pi->version);
+    pi->update_backtrace();
   }
 
   if (!linkmerge) {
@@ -2119,19 +2144,28 @@ void Server::handle_client_rename(const MDRequestRef& mdr)
   }
 
   if (straydn)
-    le->metablob.add_primary_dentry(straydn.get(), oldin.get(), true);
+    le->metablob.add_primary_dentry(straydn.get(), oldin.get(), true, true);
 
   if (src_dnl->is_remote()) {
     if (!linkmerge) {
       le->metablob.add_remote_dentry(destdn.get(), true, src_dnl->get_remote_ino(), src_dnl->get_remote_d_type());
     } else {
-      le->metablob.add_primary_dentry(destdn.get(), srci.get(), true, true);
+      le->metablob.add_primary_dentry(destdn.get(), srci.get(), true);
     }
   } else {
     le->metablob.add_primary_dentry(destdn.get(), srci.get(), true, true);
   }
 
   le->metablob.add_null_dentry(srcdn.get(), true);
+
+  if (!linkmerge) {
+    if (dest_dnl->is_remote()) {
+      le->metablob.add_primary_dentry(oldin->get_projected_parent_dn(), oldin.get(), true);
+    }
+    if (src_dnl->is_remote()) {
+      le->metablob.add_primary_dentry(srci->get_projected_parent_dn(), srci.get(), true);
+    }
+  }
 
   mdr->straydn = straydn;
   journal_and_reply(mdr, 1, 0, le, new C_MDS_rename_finish(this, mdr, srcdn_pv, destdn_pv));
@@ -2328,6 +2362,7 @@ void Server::handle_client_openc(const MDRequestRef& mdr)
 
   inode_t *pi = newi->__get_inode();
   pi->version = dn->pre_dirty();
+  pi->update_backtrace();
   pi->rstat.rfiles = 1;
 
   if (cmode & CEPH_FILE_MODE_WR) {

@@ -64,6 +64,7 @@ bin_DEBUGPROGRAMS += ceph_bench_log
 ## Unit tests
 
 check_SCRIPTS += \
+	test/osd/osd-fast-mark-down.sh \
 	test/ceph_objectstore_tool.py \
 	test/test-ceph-helpers.sh \
 	test/cephtool-test-osd.sh \

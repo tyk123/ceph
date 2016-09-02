@@ -1,4 +1,4 @@
-// -*- mode:C++; tab-width:8; c-basic-offset:2; indent-tabs-mode:t -*-
+// -*- mode:C++; tab-width:8; c-baic-offset:2; indent-tabs-mode:t -*-
 // vim: ts=8 sw=2 smarttab
 
 #include <errno.h>
@@ -1957,9 +1957,11 @@ public:
 
     RGWObjVersionTracker old_ot;
     RGWObjectCtx obj_ctx(store);
-
+    
     string tenant_name, bucket_name;
     parse_bucket(entry, tenant_name, bucket_name);
+    ldout(store->ctx(), 0) << __func__ << " " << bucket_name << " creation_time " << be.creation_time << dendl;
+
     int ret = store->get_bucket_entrypoint_info(obj_ctx, tenant_name, bucket_name, old_be, &old_ot, &orig_mtime, &attrs);
     if (ret < 0 && ret != -ENOENT)
       return ret;

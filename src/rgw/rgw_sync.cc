@@ -2152,6 +2152,7 @@ int RGWCloneMetaLogCoroutine::state_store_mdlog_entries()
   for (iter = data.entries.begin(); iter != data.entries.end(); ++iter) {
     rgw_mdlog_entry& entry = *iter;
     ldout(cct, 20) << "entry: name=" << entry.name << dendl;
+    ldout(cct, 20) << "entry: timestamp=" << entry.timestamp << dendl;
 
     cls_log_entry dest_entry;
     dest_entry.id = entry.id;

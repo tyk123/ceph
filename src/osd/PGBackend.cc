@@ -403,7 +403,7 @@ void PGBackend::be_scan_list(
   }
 }
 
-void PGBackend::be_compare_scrub_objects(
+bool PGBackend::be_compare_scrub_objects(
   pg_shard_t auth_shard,
   const ScrubMap::object &auth,
   const object_info_t& auth_oi,
@@ -469,7 +469,7 @@ void PGBackend::be_compare_scrub_objects(
     }
   }
   if (candidate.stat_error)
-    return;
+    return error == FOUND_ERROR;
   uint64_t oi_size = be_get_ondisk_size(auth_oi.size);
   if (oi_size != candidate.size) {
     if (error != CLEAN)
@@ -517,7 +517,7 @@ void PGBackend::be_compare_scrub_objects(
       obj_result.set_attr_name_mismatch();
     }
   }
-  return;
+  return error == FOUND_ERROR;
 }
 
 static int dcount(const object_info_t &oi)
@@ -695,20 +695,24 @@ void PGBackend::be_compare_scrubmaps(
 	shard_map[j->first].set_object(j->second->objects[*k]);
 	// Compare
 	stringstream ss;
-	be_compare_scrub_objects(auth->first,
+	bool found = be_compare_scrub_objects(auth->first,
 				   auth_object,
 				   auth_oi,
 				   j->second->objects[*k],
 				   shard_map[j->first],
 				   object_error,
 				   ss);
+	// Some errors might have already been set in be_select_auth_object()
 	if (shard_map[j->first].errors != 0) {
 	  cur_inconsistent.insert(j->first);
           if (shard_map[j->first].has_deep_errors())
 	    ++deep_errors;
 	  else
 	    ++shallow_errors;
-	  errorstream << pgid << " shard " << j->first << ": soid " << *k
+	  // Only true if be_compare_scrub_objects() found errors and put something
+ 	  // in ss.
+	  if (found)
+	    errorstream << pgid << " shard " << j->first << ": soid " << *k
 		      << " " << ss.str() << "\n";
 	} else {
 	  // XXX: The auth shard might get here that we don't know

@@ -587,7 +587,7 @@ typedef ceph::shared_ptr<const OSDMap> OSDMapRef;
    void be_scan_list(
      ScrubMap &map, const vector<hobject_t> &ls, bool deep, uint32_t seed,
      ThreadPool::TPHandle &handle);
-   void be_compare_scrub_objects(
+   bool be_compare_scrub_objects(
      pg_shard_t auth_shard,
      const ScrubMap::object &auth,
      const object_info_t& auth_oi,

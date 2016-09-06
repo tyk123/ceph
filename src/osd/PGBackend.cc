@@ -577,22 +577,6 @@ map<pg_shard_t, ScrubMap *>::const_iterator
       goto out;
     }
 
-    if (i->second.attrs.count(SS_ATTR) == 0) {
-      shard_map[j->first].set_ss_attr_missing();
-      error_string += " ss_attr_missing";
-    } else {
-      bufferlist bl;
-      bl.push_back(i->second.attrs[SS_ATTR]);
-      bufferlist::iterator blp = bl.begin();
-      try {
-	SnapSet snapset;
-	::decode(snapset, blp);
-      } catch (buffer::error& e) {
-	shard_map[j->first].set_ss_attr_corrupted();
-	error_string += " ss_attr_corrupted";
-      }
-    }
-
     k = i->second.attrs.find(OI_ATTR);
     if (k == i->second.attrs.end()) {
       // no object info on object, probably corrupt

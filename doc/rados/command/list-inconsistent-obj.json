@@ -66,9 +66,7 @@
                 "ec_hash_error",
                 "ec_size_error",
                 "oi_attr_missing",
-                "oi_attr_corrupted",
-                "ss_attr_missing",
-                "ss_attr_corrupted"
+                "oi_attr_corrupted"
               ]
             },
             "minItems": 0,
@@ -131,9 +129,7 @@
                       "ec_hash_error",
                       "ec_size_error",
                       "oi_attr_missing",
-                      "oi_attr_corrupted",
-                      "ss_attr_missing",
-                      "ss_attr_corrupted"
+                      "oi_attr_corrupted"
                     ]
                   },
                   "minItems": 0,

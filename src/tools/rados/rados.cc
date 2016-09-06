@@ -1308,10 +1308,6 @@ static void dump_errors(const err_t &err, Formatter &f, const char *name)
     f.dump_string("error", "oi_attr_missing");
   if (err.has_oi_attr_corrupted())
     f.dump_string("error", "oi_attr_corrupted");
-  if (err.has_ss_attr_missing())
-    f.dump_string("error", "ss_attr_missing");
-  if (err.has_ss_attr_corrupted())
-    f.dump_string("error", "ss_attr_corrupted");
   f.close_section();
 }
 

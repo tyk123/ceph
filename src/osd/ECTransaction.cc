@@ -258,6 +258,7 @@ void ECTransaction::generate_transactions(
 	auto siter = hash_infos.find(op.source);
 	assert(siter != hash_infos.end());
 	*hinfo = *(siter->second);
+	obc->attr_cache.clear();
       });
 
     // omap, truncate not supported (except 0, handled above)
